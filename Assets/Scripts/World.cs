@@ -12,8 +12,9 @@ public class World : MonoBehaviour
 	public TMPro.TextMeshProUGUI debugText;
 	public void Initialize(WorldInfo info)
 	{
+		Debug.Log("Creating world " + info);
+
 		this.info = info;
-		if (info.seed == 0) info.seed = GenerateSeed();
 		activeWorld = this;
 		chunkManager.Initialize();
 		SimplexNoise.Noise.Seed = info.seed;

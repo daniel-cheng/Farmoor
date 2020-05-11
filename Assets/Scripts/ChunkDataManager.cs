@@ -21,6 +21,13 @@ public class ChunkDataManager
 		textureMapper = GameManager.instance.textureMapper;
 	}
 
+	public void UnloadAll()
+	{
+		loadQueue.Clear();
+		data.Clear();
+		dirtyChunks.Clear();
+	}
+
 	public void Update()
 	{
 		for (int i = loadQueue.Count-1; i > -1; --i)

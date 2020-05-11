@@ -376,8 +376,55 @@ public class ChunkManager : MonoBehaviour
 		return true;
 	}
 
+	public void UnloadAll()
+	{
+		//saves everything and unloads
+		lock (shouldRenderLock)
+		{
+			for (int i = 0; i < activeChunks.Count; ++i)
+			{
+				if (!unloadQueue.Contains(activeChunks[i]))
+				{
+					unloadQueue.Enqueue(activeChunks[i]);
+				}
+			}
+			while (true)//loop until everything is unloaded
+			{
+				if (unloadQueue.Count == 0) break;
+
+				Vector2Int position = unloadQueue.Dequeue();
+
+				if (!activeChunks.Contains(position)) continue;
+
+				Chunk chunk = chunkMap[position];
+				chunk.Unload();
+				chunkPool.Enqueue(chunk);
+
+				activeChunks.Remove(position);
+				chunkMap.Remove(position);
+				chunkDataManager.UnloadChunk(position);
+			}
+			modifiedRebuildQueue.Clear();
+			modifyNeighborOrder.Clear();
+			chunkMap.Clear();
+			loadQueue.Clear();
+			unloadQueue.Clear();
+			activeChunks.Clear();
+			chunkDataManager.UnloadAll();
+		}
+		Debug.LogWarning("Unloaded all chunks");
+	}
+
+	private void OnApplicationQuit()
+	{
+		Debug.Log("OnApplicationQuit called in ChunkManager");
+		UnloadAll();
+	}
+
 	private void OnDestroy()
 	{
+		UnloadAll();
+		Debug.Log("OnDestroy called in ChunkManager");
 		shouldRenderThread.Abort();
 		Thread.Sleep(30);
 	}

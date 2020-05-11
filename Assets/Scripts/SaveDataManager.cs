@@ -17,7 +17,7 @@ public class SaveDataManager
 	}
 	public WorldInfo Initialize(WorldInfo worldInfo)
 	{
-		worldDirectory = new DirectoryInfo(saveDirectory.FullName + "/" + worldInfo.name);
+		worldDirectory = new DirectoryInfo(saveDirectory.FullName + "/" + worldInfo.id.ToString());
 		worldInfoFile = new FileInfo(worldDirectory + "/Info.json");
 		if (worldDirectory.Exists)
 		{

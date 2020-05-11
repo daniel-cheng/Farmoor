@@ -34,7 +34,11 @@ public class GameManager : MonoBehaviour
 
 		CreateTextures();
 		Structure.Initialize();
-		InitializeWorld(testWorld);
+
+
+		WorldInfo worldInfo = MainMenu.worldToLoad != null ? MainMenu.worldToLoad : testWorld;
+		InitializeWorld(worldInfo);
+
 		ui.Initialize();
 
 		//_ColorHorizon, _ColorTop, _ColorBottom;
@@ -124,7 +128,7 @@ public class GameManager : MonoBehaviour
 			cubemap.Create();
 			screenshotCamera.transform.position = world.mainCamera.transform.position;
 			screenshotCamera.RenderToCubemap(cubemap);
-			
+
 			RenderTexture equirect = new RenderTexture(4096, 2048, 0, RenderTextureFormat.ARGB32);
 			Texture2D texture = new Texture2D(4096, 2048, TextureFormat.ARGB32, false);
 			cubemap.ConvertToEquirect(equirect, Camera.MonoOrStereoscopicEye.Mono);
@@ -136,6 +140,11 @@ public class GameManager : MonoBehaviour
 			latestScreenshot = texture;
 			System.IO.FileInfo file = new System.IO.FileInfo(Application.persistentDataPath + "/" + TimeStamp().ToString() + ".png");
 			System.IO.File.WriteAllBytes(file.FullName, texture.EncodeToPNG());
+		}
+
+		if (Input.GetKeyDown(KeyCode.F8))
+		{
+			world.chunkManager.UnloadAll(); //refresh test
 		}
 	}
 
