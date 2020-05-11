@@ -1,5 +1,5 @@
 # Minecraft Clone made in Unity3D
-![alt text](https://i.postimg.cc/nc9knXQG/minecraft-Unity-Github-Thumb2.jpg)
+![alt text](https://i.postimg.cc/CxSvprQg/minecraft-Unity-Github-Thumb3.jpg)
 -Infinite chunk generation  
 -Generates caves and ores  
 -Light simulation and smooth light rendering  
@@ -10,6 +10,7 @@ The project does not contain official textures from Minecraft and no audio!
   
 The placeholder textures can be replaced in "Assets/Textures/".  
 Audio files can be placed in "Assets/Resources/Audio" in the correct subfolders (make sure "Load in background" is checked).  
+![alt text](https://i.postimg.cc/nc9knXQG/minecraft-Unity-Github-Thumb2.jpg)
 ![alt text](https://i.postimg.cc/85YKRwzJ/minecraft-Unity-Screenshot2.jpg)
 
 Video:  
