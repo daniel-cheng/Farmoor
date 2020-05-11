@@ -144,8 +144,52 @@ public class GameManager : MonoBehaviour
 
 		if (Input.GetKeyDown(KeyCode.F8))
 		{
-			world.chunkManager.UnloadAll(); //refresh test
+			UnloadAll(); //refresh test
 		}
+	}
+
+	public void UnloadAll()
+	{
+		CreateScreenshot();
+		world.chunkManager.UnloadAll();
+	}
+
+	private void OnApplicationQuit()
+	{
+		if (!this.enabled) return;
+		Debug.Log("OnApplicationQuit called in GameManager");
+		UnloadAll();
+		this.enabled = false;
+	}
+
+	private void OnDestroy()
+	{
+		if (!this.enabled) return;
+		Debug.Log("OnDestroy called in GameManager");
+		UnloadAll();
+		this.enabled = false;
+	}
+
+	public void CreateScreenshot()
+	{
+		RenderTexture temporary = RenderTexture.GetTemporary(256, 144, 0, RenderTextureFormat.ARGB32);
+		screenshotCamera.transform.position = world.mainCamera.transform.position;
+		screenshotCamera.transform.rotation = world.mainCamera.transform.rotation;
+		screenshotCamera.fieldOfView = world.mainCamera.fieldOfView;
+		screenshotCamera.targetTexture = temporary;
+		screenshotCamera.Render();
+		Texture2D texture = new Texture2D(256, 144, TextureFormat.ARGB32, false);
+
+		RenderTexture temp = RenderTexture.active;
+		RenderTexture.active = temporary;
+		texture.ReadPixels(new Rect(0, 0, temporary.width, temporary.height), 0, 0);
+		RenderTexture.active = temp;
+		texture.Apply();
+		latestScreenshot = texture;
+		RenderTexture.ReleaseTemporary(temporary);
+		WorldInfo info = world.info;
+		System.IO.FileInfo thumb = new System.IO.FileInfo(Application.persistentDataPath + "/Worlds/" + info.id + "/Thumbnail.png");
+		System.IO.File.WriteAllBytes(thumb.FullName, texture.EncodeToPNG());
 	}
 
 	private long TimeStamp()

@@ -9,6 +9,8 @@ public class ChunkManager : MonoBehaviour
 	public Chunk chunkPrefab;
 	public ChunkDataManager chunkDataManager;
 
+	public bool playerCanMove = false;
+
 	private int renderDistance;
 	private int maximumLoadQueueSize;
 	private int[,] surroundingArea;
@@ -41,7 +43,7 @@ public class ChunkManager : MonoBehaviour
 	{
 		renderDistance = GameManager.instance.gameSettings.RenderDistance;
 		maximumLoadQueueSize = GameManager.instance.gameSettings.maximumLoadQueueSize;
-
+		playerCanMove = false;
 		surroundingArea = new int[renderDistance*2, renderDistance*2];
 		chunkDataManager = new ChunkDataManager();
 		chunkMap = new Dictionary<Vector2Int, Chunk>();
@@ -160,6 +162,7 @@ public class ChunkManager : MonoBehaviour
 					UnityEngine.Profiling.Profiler.EndSample();
 				}
 			}
+			playerCanMove = activeChunks.Count>32;
 		}
 		shouldRenderWaitForUpdate = false;
 		UnityEngine.Profiling.Profiler.EndSample();
@@ -289,30 +292,6 @@ public class ChunkManager : MonoBehaviour
 		}
 	}
 
-	public void RenderAllChunksAroundCamera()
-	{
-		Vector3 cameraPosition = World.activeWorld.mainCamera.transform.position;
-		Vector2Int cameraChunkPos = new Vector2Int((int)cameraPosition.x / 16, (int)cameraPosition.z / 16);
-		lock (shouldRenderLock)
-		{
-			for (int y = cameraChunkPos.y - renderDistance + 1; y < renderDistance - 1; ++y)
-			{
-				for (int x = cameraChunkPos.x - renderDistance + 1; x < renderDistance - 1; ++x)
-				{
-					Vector2Int pos = new Vector2Int(x, y);
-					if (Vector2Int.Distance(pos, cameraChunkPos) < renderDistance)
-					{
-						if (!loadQueue.Contains(pos))
-						{
-							loadQueue.Add(pos);
-
-						}
-					}
-				}
-			}
-		}
-	}
-
 	public byte GetBlock(Vector2Int chunk, int x, int y, int z)
 	{
 		if (!chunkMap.ContainsKey(chunk)) throw new System.Exception("Chunk is not available");
@@ -378,6 +357,7 @@ public class ChunkManager : MonoBehaviour
 
 	public void UnloadAll()
 	{
+		playerCanMove = false;
 		//saves everything and unloads
 		lock (shouldRenderLock)
 		{
@@ -415,15 +395,9 @@ public class ChunkManager : MonoBehaviour
 		Debug.LogWarning("Unloaded all chunks");
 	}
 
-	private void OnApplicationQuit()
-	{
-		Debug.Log("OnApplicationQuit called in ChunkManager");
-		UnloadAll();
-	}
 
 	private void OnDestroy()
 	{
-		UnloadAll();
 		Debug.Log("OnDestroy called in ChunkManager");
 		shouldRenderThread.Abort();
 		Thread.Sleep(30);

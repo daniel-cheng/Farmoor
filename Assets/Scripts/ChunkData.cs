@@ -399,7 +399,7 @@ public class ChunkData
 			byte lightLevel = BlockTypes.lightLevel[c.b];
 			if (lightLevel > 0)
 			{
-				lightSources.Add(new Vector3Int(c.x, c.y, c.z), lightLevel);
+				lightSources[new Vector3Int(c.x, c.y, c.z)]=lightLevel;
 			}
 		}
 

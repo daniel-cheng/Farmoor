@@ -44,7 +44,10 @@ public class Player : MonoBehaviour
 
 	void Update()
 	{
-		setup.myRigidbody.isKinematic = (GameManager.instance.isInStartup || state == State.Spectator);
+		bool canMove = true;
+		canMove &= !GameManager.instance.isInStartup;
+		canMove &= World.activeWorld.chunkManager.playerCanMove;
+		setup.myRigidbody.isKinematic = (!canMove || state == State.Spectator);
 
 		if (Input.GetKeyDown(KeyCode.Escape))
 		{
