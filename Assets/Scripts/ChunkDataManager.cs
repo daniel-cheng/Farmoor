@@ -4,6 +4,7 @@ using UnityEngine;
 public class ChunkDataManager
 {
 	public Dictionary<Vector2Int, ChunkData> data;
+	private WorldInfo worldInfo;
 	private TextureMapper textureMapper;
 	private List<Vector2Int> loadQueue;
 	private List<Vector2Int> dirtyChunks;
@@ -13,8 +14,9 @@ public class ChunkDataManager
 	private readonly Vector2Int nRight = new Vector2Int(1,0);
 
 
-	public ChunkDataManager()
+	public ChunkDataManager(WorldInfo worldInfo)
 	{
+		this.worldInfo = worldInfo;
 		data = new Dictionary<Vector2Int, ChunkData>();
 		loadQueue = new List<Vector2Int>();
 		dirtyChunks = new List<Vector2Int>();
@@ -105,7 +107,7 @@ public class ChunkDataManager
 	private ChunkData OpenOrCreateChunkData(Vector2Int position)
 	{
 		if (data.ContainsKey(position)) return data[position];
-		ChunkData chunkData = new ChunkData(position);
+		ChunkData chunkData = new ChunkData(position,worldInfo);
 		chunkData.StartTerrainLoading();
 		data.Add(position, chunkData);
 		return chunkData;

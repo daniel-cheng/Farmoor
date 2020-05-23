@@ -5,26 +5,28 @@ using UnityEngine;
 public class World : MonoBehaviour
 {
 	public static World activeWorld;
+	public static FastNoise noise;
 	public WorldInfo info;
 	public Camera mainCamera;
 	public ChunkManager chunkManager;
 	private bool initialized = false;
-	public TMPro.TextMeshProUGUI debugText;
+	//public TMPro.TextMeshProUGUI debugText;
 	public void Initialize(WorldInfo info)
 	{
 		Debug.Log("Creating world " + info);
 
 		this.info = info;
 		activeWorld = this;
-		chunkManager.Initialize();
+		noise = new FastNoise(info.seed);
+		chunkManager.Initialize(info);
 		SimplexNoise.Noise.Seed = info.seed;
 		System.GC.Collect();
 		initialized = true;
 	}
-	void LateUpdate()
+	public void UpdateWorld()
     {
 		if (!initialized) return;
-		debugText.text = "Seed: "+info.seed;
+		GameManager.instance.AddDebugLine($"World: id[{info.id}] seed[{info.seed}] name[{info.name}]" );
 		//update chunks if no modifications have happened this frame
 		//only rebuild 1 chunk per frame to avoid framedrops
 		chunkManager.UpdateChunks(mainCamera);

@@ -16,6 +16,11 @@ Shader "Unlit/Block"
 			#pragma fragment pixel_shader
 			#pragma exclude_renderers nomrt
 			#pragma multi_compile ___ UNITY_HDR_ON
+			#pragma multi_compile TEXTURES_ON TEXTURES_OFF
+			#pragma multi_compile VIEW_NORMALS_OFF VIEW_NORMALS_ON
+			#pragma multi_compile VIEW_UV_OFF VIEW_UV_ON
+			#pragma multi_compile LIGHTING_ON LIGHTING_OFF
+
 			#pragma target 3.0
 			#include "UnityPBSLighting.cginc"
 
@@ -29,7 +34,7 @@ Shader "Unlit/Block"
 				float4 world_vertex : TEXCOORD0;
 				float3 normal : TEXCOORD1;
 				float2 uv : TEXCOORD2;
-				float4 color : COLOR;
+				float light : COLOR;
 			};
 
 			struct structurePS
@@ -40,15 +45,47 @@ Shader "Unlit/Block"
 				half4 emission : SV_Target3;
 			};
 
-			structureVS vertex_shader(float4 vertex : POSITION,float3 normal : NORMAL, float2 uv : TEXCOORD0, float4 color : COLOR)
+			//normals 0 front; 1 back; 2 top; 3 bottom; 4 left; 5 right
+
+			structureVS vertex_shader(float4 vertex : POSITION, uint4 color : COLOR)
 			{
 				structureVS vs;
-				vs.screen_vertex = UnityObjectToClipPos(vertex);
-				vs.world_vertex = mul(unity_ObjectToWorld, vertex);
-				vs.normal = UnityObjectToWorldNormal(normal);
-				vs.uv= uv / 128 * 16;
+				float4 vertexFloat = (float4)vertex;
+				vs.screen_vertex = UnityObjectToClipPos(vertexFloat);
+				vs.world_vertex = mul(unity_ObjectToWorld, vertexFloat);
+				int n = color.b;
+				switch (n)
+				{
+					default:
+					case 0: 
+						vs.normal = UnityObjectToWorldNormal(float3(0, 0, 1));
+						break;
+					case 1:
+						vs.normal = UnityObjectToWorldNormal(float3(0, 0, -1));
+						break;
+					case 2:
+						vs.normal = UnityObjectToWorldNormal(float3(0, 1, 0));
+						break;
+					case 3:
+						vs.normal = UnityObjectToWorldNormal(float3(0, -1, 0));
+						break;
+					case 4:
+						vs.normal = UnityObjectToWorldNormal(float3(-1, 0, 0));
+						break;
+					case 5:
+						vs.normal = UnityObjectToWorldNormal(float3(1, 0, 0));
+						break;
+				}
+				
+				
+				//vs.normal = UnityObjectToWorldNormal(normal);
+#if TEXTURES_ON
+				vs.uv= color.rg / 128.0 * 16;
+#else
+				vs.uv = color.rg / 16.0 * 16;
+#endif
 				vs.uv.y = 1 - vs.uv.y;
-				vs.color = color;
+				vs.light = color.a / 15.0;
 				//vs.uv = uv;
 				return vs;
 			}
@@ -61,8 +98,9 @@ Shader "Unlit/Block"
 				return lerp(_SkyColorHorizon, lerp(_SkyColorBottom, _SkyColorTop, saturate(sign(viewDir.y))), height);
 			}
 
-			uniform sampler2D _BlockTextures;
+			uniform sampler2D _BlockTextures, _UVTexture;
 			uniform float _MinLightLevel;
+			uniform int _RenderDistance;
 			structurePS pixel_shader(structureVS vs)
 			{
 				structurePS ps;
@@ -70,22 +108,38 @@ Shader "Unlit/Block"
 				half3 specular;
 				half specularMonochrome;
 				half3 diffuseColor = DiffuseAndSpecularFromMetallic(_Color.rgb, _Metallic, specular, specularMonochrome);
-
+				
+#if TEXTURES_ON
 				fixed4 c = tex2D(_BlockTextures, vs.uv);
+#else
+				fixed4 c = tex2D(_UVTexture, vs.uv);
+
+#endif
+#if VIEW_NORMALS_ON
+				c.rgb = vs.normal*0.5 + 0.5f;
+#endif
 				//c.rgb = 1;
-				clip(c.a - 0.1);
+				//c.rgb = float3(vs.uv % 1.0, 0);
+				clip(c.a - 0.25);
 
 				fixed4 sky = GetSkyColor(vs.world_vertex - _WorldSpaceCameraPos);
-				float fade = saturate(pow(distance(_WorldSpaceCameraPos.xz, vs.world_vertex.xz) / (16.0 - 1.0) / 16.0, 12));
-				float4 vertexColor = vs.color;
-				c.rgb *= vertexColor.rgb;
 
-				float lightLevel = vertexColor.a * 16;
+				float fade = saturate(pow(distance(_WorldSpaceCameraPos.xz, vs.world_vertex.xz) / 16.0 / (_RenderDistance - 1.0), 12));
+				//float4 vertexColor = vs.color;
+				//c.rgb *= vs.normal.rgb*0.5+0.5;
+
+			
+
+				float lightLevel = vs.light;
 				float light = lerp(_MinLightLevel, 1, lightLevel);
-				
+#if LIGHTING_OFF
+				light = 1;
+#endif
+				//float light = 1;
 				c *= light;
 				c.rgb += diffuseColor;
 				c.a = 1;
+				
 
 				ps.albedo = 0;
 				ps.specular = half4(specular, 0);

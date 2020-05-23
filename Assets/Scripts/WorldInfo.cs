@@ -5,6 +5,13 @@ public class WorldInfo
 	public uint time;
 	public string name;
 	public int seed;
+	public Type type;
+	public enum Type
+	{
+		Default,
+		FloatingIslands,
+		Flat
+	}
 	public override string ToString()
 	{
 		return $"id[{id}] name[{name}] seed[{seed}] time[{time}]";

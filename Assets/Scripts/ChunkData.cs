@@ -4,7 +4,7 @@ using System.Collections.Generic;
 public class ChunkData
 {
 	public Vector2Int position;
-	private byte[,,] blocks, light;
+	private byte[,,] blocks;
 	public bool terrainReady { get; private set; }
 	public bool startedLoadingDetails { get; private set; }
 	public bool chunkReady { get; private set; }
@@ -14,11 +14,13 @@ public class ChunkData
 	//devide by chance ( 1 in X )
 	const int STRUCTURE_CHANCE_TREE = (int.MaxValue / 100);
 	const int STRUCTURE_CHANCE_WELL = (int.MaxValue / 512);
-	const int STRUCTURE_CHANCE_CAVE_ENTRANCE = (int.MaxValue / 50);
+	const int STRUCTURE_CHANCE_CAVE_ENTRANCE = (int.MaxValue / 20);
 
 
 	private Thread loadTerrainThread;
 	private Thread loadDetailsThread;
+
+	private WorldInfo worldInfo;
 
 	public HashSet<Vector2Int> references;
 
@@ -46,9 +48,10 @@ public class ChunkData
 	}
 
 
-	public ChunkData(Vector2Int position)
+	public ChunkData(Vector2Int position, WorldInfo worldInfo)
 	{
 		this.position = position;
+		this.worldInfo=worldInfo;
 		terrainReady = false;
 		startedLoadingDetails = false;
 		chunkReady = false;
@@ -62,19 +65,6 @@ public class ChunkData
 	{
 		//if (!chunkReady) throw new System.Exception($"Chunk {position} has not finished loading");
 		return blocks;
-	}
-
-	public byte[,,] GetLights()
-	{
-		//if (!chunkReady) throw new System.Exception($"Chunk {position} has not finished loading");
-		return light;
-	}
-
-	public byte[,,] NewLights()
-	{
-		//if (!chunkReady) throw new System.Exception($"Chunk {position} has not finished loading");
-		light = new byte[16, 256, 16];
-		return light;
 	}
 
 	public void StartTerrainLoading()
@@ -103,106 +93,179 @@ public class ChunkData
 	public void LoadTerrain() //also loads structures INFO
 	{
 		blocks = new byte[16, 256, 16];
-		light = new byte[16, 256, 16];
 		Vector2Int worldPos = position * 16;
+		FastNoise noise = World.noise;
+
+		int islandHeight = 64;
+
 
 		for (int z = 0; z < 16; ++z)
 		{
 			for (int x = 0; x < 16; ++x)
 			{
-				int noiseX = worldPos.x + x;
-				int noiseZ = worldPos.y + z;
-				float height = SimplexNoise.Noise.CalcPixel2D(noiseX, noiseZ+50000, 0.01f);
-				height = height  * 16 + 64;
-				int heightInt = (int)height;
+				int worldX = position.x * 16 + x;
+				int worldZ = position.y * 16 + z;
+				float distanceToSpawn = Vector2.Distance(new Vector2(worldX, worldZ), Vector2.zero);
+				float bigIsland = Mathf.Clamp01((250f - distanceToSpawn) / 250f);
 
-				float bedrock = SimplexNoise.Noise.CalcPixel2D(noiseX, noiseZ+50000, 1f);
-				bedrock = bedrock * 3 + 1;
-				int bedrockInt = (int)bedrock;
+				float i1 = noise.GetPerlin(worldX * .5f, worldZ * .5f);
+				float i2 = noise.GetPerlin(worldX * 1f, worldZ * 1f);
+				float i3 = noise.GetPerlin(worldX * 5f, worldZ * 5f);
+				float height = Mathf.Min(i1, i2)+ bigIsland + (i3 * 0.02f);
+				height = Mathf.Clamp01(height - 0.1f) / 0.9f;
+				height = Mathf.Pow(height, 1f / 2);
 
+				float hills = noise.GetPerlin(worldX * 4f+500, worldZ * 4f)*0.5f+.5f;
+				hills *= height; //smooth edge
+				int hillHeight = (int)(islandHeight + (hills * 16));
+				int bottomHeight = (int)(islandHeight - (height * 80));
+
+				//int noiseX = worldPos.x + x;
+				//int noiseZ = worldPos.y + z;
+				//float height = SimplexNoise.Noise.CalcPixel2D(noiseX, noiseZ+50000, 0.01f);
+				//height = height  * 16 + 64;
+				//int heightInt = (int)height;
+
+				//float bedrock = SimplexNoise.Noise.CalcPixel2D(noiseX, noiseZ+50000, 1f);
+				//bedrock = bedrock * 3 + 1;
+				//int bedrockInt = (int)bedrock;
+				if (height == 0)
+				{
+					for (int y = 0; y < 256; ++y)
+					{
+						blocks[x, y, z] = BlockTypes.AIR;
+					}
+
+					continue;
+				}
 				for (int y = 0; y < 256; ++y)
 				{
-					//bedrock
-					if (y < bedrockInt)
-					{
-						blocks[x, y, z] = BlockTypes.BEDROCK;
-						continue;
-					}
-
-					//air
-					if (y > heightInt)
+					if (y > hillHeight || y<bottomHeight)
 					{
 						blocks[x, y, z] = BlockTypes.AIR;
 						continue;
 					}
 
-					//ores
-					float o1 = SimplexNoise.Noise.CalcPixel3D(noiseX + 50000, y, noiseZ, 0.1f);
-					float o2 = SimplexNoise.Noise.CalcPixel3D(noiseX + 40000, y, noiseZ, 0.1f);
-					float o3 = SimplexNoise.Noise.CalcPixel3D(noiseX + 30000, y, noiseZ, 0.04f);
-					float o4 = SimplexNoise.Noise.CalcPixel3D(noiseX + 60000, y, noiseZ, 0.1f);
-					float o5 = SimplexNoise.Noise.CalcPixel3D(noiseX + 70000, y, noiseZ, 0.1f);
-					float o6 = SimplexNoise.Noise.CalcPixel3D(noiseX + 80000, y, noiseZ, 0.03f);
+					float cave1 = noise.GetPerlin(worldX*10f-400, y * 10f, worldZ * 10f);
+					float cave2 = noise.GetPerlin(worldX * 20f - 600, y * 20f, worldZ * 20f);
+					float cave3 = noise.GetPerlin(worldX * 5f - 200, y * 5f, worldZ * 5f);
+					float cave = Mathf.Min(cave1, Mathf.Min(cave2, cave3));
 
-					float heightGradient = Mathf.Pow(Mathf.Clamp01(y / 128f), 2f);
+					//if (cave > 0)
+					//{
+					//	blocks[x, y, z] = BlockTypes.STONE;
+					//	continue;
+					//}
+					////temp
+					//blocks[x, y, z] = BlockTypes.AIR;
+					//continue;
 
-					//caves
-					float c1 = SimplexNoise.Noise.CalcPixel3D(noiseX, y, noiseZ, 0.1f);
-					float c2 = SimplexNoise.Noise.CalcPixel3D(noiseX, y, noiseZ, 0.04f);
-					float c3 = SimplexNoise.Noise.CalcPixel3D(noiseX, y, noiseZ, 0.02f);
-					float c4 = SimplexNoise.Noise.CalcPixel3D(noiseX, y, noiseZ, 0.01f);
-					
-					c1 += (heightGradient);
-					if (c1 < .5 && c2 < .5 && c3 < .5 && c4 < .5)
+					if (y > hillHeight - 4)
 					{
-						blocks[x, y, z] = BlockTypes.AIR;
-						continue;
-					}
-
-					//grass level
-					if (y == heightInt)
-					{
-						blocks[x, y, z] = BlockTypes.GRASS;
-						continue;
-					}
-
-					//dirt
-					if (y >= heightInt-4)
-					{
+						if (cave > 0.2)
+						{
+							blocks[x, y, z] = BlockTypes.AIR;
+							continue;
+						}
+						if (y == hillHeight)
+						{
+							blocks[x, y, z] = BlockTypes.GRASS;
+							continue;
+						}
 						blocks[x, y, z] = BlockTypes.DIRT;
 						continue;
 					}
-
-					
-
-					o5 += (heightGradient);
-					if (y < 64 && o5 < .04)
+					if (cave > 0)
 					{
-						blocks[x, y, z] = BlockTypes.GOLD;
+						blocks[x, y, z] = BlockTypes.AIR;
 						continue;
 					}
 
-					if (y < 16 && Mathf.Pow(o2, 4f) > .7 && o3 < .1)
-					{
-						blocks[x, y, z] = BlockTypes.DIAMOND;
-						continue;
-					}
-
-					if (o4 < .1 && o6 > .8)
-					{
-						blocks[x, y, z] = BlockTypes.IRON;
-						continue;
-					}
-
-					if (o1 < .08)
-					{
-						blocks[x, y, z] = BlockTypes.COAL;
-						continue;
-					}
-
-					//remaining is stone
 					blocks[x, y, z] = BlockTypes.STONE;
+
 					continue;
+
+					//	//bedrock
+					//	if (y < bedrockInt)
+					//	{
+					//		blocks[x, y, z] = BlockTypes.BEDROCK;
+					//		continue;
+					//	}
+
+					//	//air
+					//	if (y > heightInt)
+					//	{
+					//		blocks[x, y, z] = BlockTypes.AIR;
+					//		continue;
+					//	}
+
+					//	//ores
+					//	float o1 = SimplexNoise.Noise.CalcPixel3D(noiseX + 50000, y, noiseZ, 0.1f);
+					//	float o2 = SimplexNoise.Noise.CalcPixel3D(noiseX + 40000, y, noiseZ, 0.1f);
+					//	float o3 = SimplexNoise.Noise.CalcPixel3D(noiseX + 30000, y, noiseZ, 0.04f);
+					//	float o4 = SimplexNoise.Noise.CalcPixel3D(noiseX + 60000, y, noiseZ, 0.1f);
+					//	float o5 = SimplexNoise.Noise.CalcPixel3D(noiseX + 70000, y, noiseZ, 0.1f);
+					//	float o6 = SimplexNoise.Noise.CalcPixel3D(noiseX + 80000, y, noiseZ, 0.03f);
+
+					//	float heightGradient = Mathf.Pow(Mathf.Clamp01(y / 128f), 2f);
+
+					//	//caves
+					//	float c1 = SimplexNoise.Noise.CalcPixel3D(noiseX, y, noiseZ, 0.1f);
+					//	float c2 = SimplexNoise.Noise.CalcPixel3D(noiseX, y, noiseZ, 0.04f);
+					//	float c3 = SimplexNoise.Noise.CalcPixel3D(noiseX, y, noiseZ, 0.02f);
+					//	float c4 = SimplexNoise.Noise.CalcPixel3D(noiseX, y, noiseZ, 0.01f);
+
+					//	c1 += (heightGradient);
+					//	if (c1 < .5 && c2 < .5 && c3 < .5 && c4 < .5)
+					//	{
+					//		blocks[x, y, z] = BlockTypes.AIR;
+					//		continue;
+					//	}
+
+					//	//grass level
+					//	if (y == heightInt)
+					//	{
+					//		blocks[x, y, z] = BlockTypes.GRASS;
+					//		continue;
+					//	}
+
+					//	//dirt
+					//	if (y >= heightInt-4)
+					//	{
+					//		blocks[x, y, z] = BlockTypes.DIRT;
+					//		continue;
+					//	}
+
+
+
+					//	o5 += (heightGradient);
+					//	if (y < 64 && o5 < .04)
+					//	{
+					//		blocks[x, y, z] = BlockTypes.GOLD;
+					//		continue;
+					//	}
+
+					//	if (y < 16 && Mathf.Pow(o2, 4f) > .7 && o3 < .1)
+					//	{
+					//		blocks[x, y, z] = BlockTypes.DIAMOND;
+					//		continue;
+					//	}
+
+					//	if (o4 < .1 && o6 > .8)
+					//	{
+					//		blocks[x, y, z] = BlockTypes.IRON;
+					//		continue;
+					//	}
+
+					//	if (o1 < .08)
+					//	{
+					//		blocks[x, y, z] = BlockTypes.COAL;
+					//		continue;
+					//	}
+
+					//	//remaining is stone
+					//	blocks[x, y, z] = BlockTypes.STONE;
+					//	continue;
 				}
 			}
 		}

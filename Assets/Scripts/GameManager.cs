@@ -1,11 +1,12 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-
+using TMPro;
 public class GameManager : MonoBehaviour
 {
 	public static GameManager instance { get; private set; }
 	public bool showLoadingScreen = true;
+	public Player player;
 	public World world;
 	public GameSettings gameSettings;
 	public UI ui;
@@ -14,10 +15,10 @@ public class GameManager : MonoBehaviour
 	public AudioManager audioManager;
 	public bool isInStartup;
 	public WorldInfo testWorld;
-	public Texture2D textures;
+	public Texture2D textures, uvTexture;
 	public Camera screenshotCamera;
 	public Texture2D latestScreenshot;
-
+	public TextMeshProUGUI debugText;
 	private void Start()
 	{
 		instance = this;
@@ -46,6 +47,7 @@ public class GameManager : MonoBehaviour
 		Shader.SetGlobalColor("_SkyColorHorizon", new Color(0.3632075f, 0.6424405f, 1f, 1f));
 		Shader.SetGlobalColor("_SkyColorBottom", new Color(0.1632253f, 0.2146282f, 0.2641509f, 1f));
 		Shader.SetGlobalFloat("_MinLightLevel", gameSettings.minimumLightLevel);
+		Shader.SetGlobalInt("_RenderDistance", gameSettings.RenderDistance);
 #if !UNITY_EDITOR
 		showLoadingScreen = true;
 #endif
@@ -59,6 +61,7 @@ public class GameManager : MonoBehaviour
 
 	private void Update()
 	{
+		debugText.text = "";
 		if (!audioManager.IsPlayingMusic())
 		{
 			if (isInStartup)
@@ -93,6 +96,9 @@ public class GameManager : MonoBehaviour
 				System.GC.Collect();
 			}
 		}
+		player.disableInput = ui.console.gameObject.activeSelf;
+		player.UpdatePlayer();
+		world.UpdateWorld();
 		ui.UpdateUI();
 		DebugStuff();
 	}
@@ -116,10 +122,20 @@ public class GameManager : MonoBehaviour
 		temp.Apply();
 		textures = temp;
 		Shader.SetGlobalTexture("_BlockTextures", textures);
+		Shader.SetGlobalTexture("_UVTexture", uvTexture);
+	}
+
+	public void AddDebugLine(string line)
+	{
+		debugText.text += line + "\n";
 	}
 
 	private void DebugStuff()
 	{
+		if (Input.GetKeyDown(KeyCode.F3))
+		{
+			debugText.gameObject.SetActive(!debugText.gameObject.activeSelf);
+		}
 		//360 screenshot
 		if (Input.GetKeyDown(KeyCode.F4))
 		{

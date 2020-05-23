@@ -11,6 +11,7 @@ public class ChunkManager : MonoBehaviour
 
 	public bool playerCanMove = false;
 
+	private WorldInfo worldInfo;
 	private int renderDistance;
 	private int maximumLoadQueueSize;
 	private int[,] surroundingArea;
@@ -39,13 +40,14 @@ public class ChunkManager : MonoBehaviour
 	private readonly Vector2Int nLeft = new Vector2Int(-1, 0);
 	private readonly Vector2Int nRight = new Vector2Int(1, 0);
 
-	public void Initialize()
+	public void Initialize(WorldInfo worldInfo)
 	{
+		this.worldInfo = worldInfo;
 		renderDistance = GameManager.instance.gameSettings.RenderDistance;
 		maximumLoadQueueSize = GameManager.instance.gameSettings.maximumLoadQueueSize;
 		playerCanMove = false;
 		surroundingArea = new int[renderDistance*2, renderDistance*2];
-		chunkDataManager = new ChunkDataManager();
+		chunkDataManager = new ChunkDataManager(worldInfo);
 		chunkMap = new Dictionary<Vector2Int, Chunk>();
 		chunkPool = new Queue<Chunk>();
 		activeChunks = new List<Vector2Int>();
@@ -83,7 +85,7 @@ public class ChunkManager : MonoBehaviour
 		UnityEngine.Profiling.Profiler.BeginSample("LOCK SHOULD RENDER");
 
 
-		for (int loop = 0; loop < (isInStartup ? 8 : 1); ++loop) //startup loads a laggy 8 chunks per frame
+		for (int loop = 0; loop < (isInStartup ? 16 : 1); ++loop) //startup loads a laggy 8 chunks per frame
 		{
 			lock (shouldRenderLock)
 			{
@@ -169,7 +171,7 @@ public class ChunkManager : MonoBehaviour
 		int activeChunksCount = activeChunks.Count;
 		int rebuildQueueCount = modifiedRebuildQueue.Count;
 		int chunksInMemoryCount = chunkDataManager.GetChunksInMemoryCount();
-		World.activeWorld.debugText.text += $" / Chunks (Q:{loadQueueCount} R:{rebuildQueueCount} A:{activeChunksCount} M:{chunksInMemoryCount})";
+		GameManager.instance.AddDebugLine( $"Chunks: (Q:{loadQueueCount} R:{rebuildQueueCount} A:{activeChunksCount} M:{chunksInMemoryCount})");
 		UnityEngine.Profiling.Profiler.EndSample();
 	}
 
@@ -236,7 +238,18 @@ public class ChunkManager : MonoBehaviour
 				}
 			}
 
-			List<Vector2Int> ordered = visiblePoints.OrderBy(vp => Vector2Int.Distance(cameraChunkPos, vp)).ToList<Vector2Int>();
+			//List<Vector2Int> ordered = visiblePoints.OrderBy(vp => Vector2Int.Distance(cameraChunkPos, vp)).ToList<Vector2Int>();
+			List<Vector2Int> ordered;
+			if (isInStartup)
+			{
+				System.Random rnd = new System.Random();
+				ordered = visiblePoints.OrderBy(vp => rnd.Next()).ToList<Vector2Int>();
+
+			}
+			else
+			{
+				ordered = visiblePoints.OrderBy(vp => ChunkPriority(vp, cameraChunkPos, cameraForwardFloor)).ToList<Vector2Int>();
+			}
 
 			while (shouldRenderWaitForUpdate) Thread.Sleep(8);
 			shouldRenderWaitForUpdate = true;
@@ -292,6 +305,15 @@ public class ChunkManager : MonoBehaviour
 		}
 	}
 
+	private float ChunkPriority(Vector2Int position, Vector2Int cameraChunkPos, Vector3 cameraForwardFloor)
+	{
+		float distanceValue = (Vector2Int.Distance(cameraChunkPos, position))/renderDistance;
+		Vector2Int toChunk = position - cameraChunkPos;
+		Vector2 cameraForwardVector2 = new Vector2(cameraForwardFloor.x, cameraForwardFloor.z);
+		float angleValue = (Vector2.Angle(toChunk, cameraForwardVector2))/140;
+		return  angleValue+distanceValue;
+	}
+
 	public byte GetBlock(Vector2Int chunk, int x, int y, int z)
 	{
 		if (!chunkMap.ContainsKey(chunk)) throw new System.Exception("Chunk is not available");
@@ -301,7 +323,7 @@ public class ChunkManager : MonoBehaviour
 	public bool Modify(Vector2Int chunk, int x, int y, int z, byte blockType)
 	{
 		if (modifiedRebuildQueue.Count > 0) return false;
-		if (!chunkMap.ContainsKey(chunk)) throw new System.Exception("Chunk is not available");
+		if (!chunkMap.ContainsKey(chunk)) throw new System.Exception($"Chunk {chunk} is not available");
 		Debug.Log($"Chunk {chunk} Modifying {x} {y} {z} {blockType}");
 		chunkDataManager.Modify(chunk, x, y, z, blockType);
 		bool f = z == 15;

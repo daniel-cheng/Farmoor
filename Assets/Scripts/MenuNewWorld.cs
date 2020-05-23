@@ -32,6 +32,7 @@ public class MenuNewWorld : MonoBehaviour
 		worldInfo.name = newWorldName;
 		worldInfo.seed = generatedSeed;
 		worldInfo.time = (uint)(System.DateTime.Now.Subtract(new System.DateTime(1970, 1, 1))).TotalSeconds;
+		worldInfo.type = WorldInfo.Type.Default;
 		mainMenu.StartGame(worldInfo);
 	}
 }

@@ -9,11 +9,13 @@ public class Player : MonoBehaviour
 	private Quaternion cameraRotation;
 	private Vector3 cameraPosition;
 	private long lastPressedSpace=0;
+	public bool disableInput = false;
 	public State state=State.Creative_Walking;
 	private bool running=false;
 	private float wobble = 0;
 	private float wobbleIntensity = 0;
 	public Setup setup;
+	private string debugInfo;
 
 	public enum State
 	{
@@ -42,30 +44,35 @@ public class Player : MonoBehaviour
 		cameraPosition = transform.position + new Vector3(0, .5f, 0);
 	}
 
-	void Update()
+	public void UpdatePlayer()
 	{
+		Vector3 pos = transform.position;
+		Vector3Int playerIntPos = new Vector3Int((int)pos.x, (int)pos.y, (int)pos.z);
+		Vector2Int playerChunk = new Vector2Int(Mathf.FloorToInt(playerIntPos.x / 16f), Mathf.FloorToInt(playerIntPos.z / 16f));
+		debugInfo = $"Player: Position[{playerIntPos}] Chunk[{playerChunk}] State[{state}]";
 		bool canMove = true;
 		canMove &= !GameManager.instance.isInStartup;
 		canMove &= World.activeWorld.chunkManager.playerCanMove;
 		setup.myRigidbody.isKinematic = (!canMove || state == State.Spectator);
 
-		if (Input.GetKeyDown(KeyCode.Escape))
+		Vector2 movement = new Vector2();
+		if (!disableInput)
 		{
-			Cursor.lockState = Cursor.lockState == CursorLockMode.Locked ? CursorLockMode.None : CursorLockMode.Locked;
-			Cursor.visible = (Cursor.lockState == CursorLockMode.None);
+			if (Input.GetKeyDown(KeyCode.Escape))
+			{
+				//Cursor.lockState = Cursor.lockState == CursorLockMode.Locked ? CursorLockMode.None : CursorLockMode.Locked;
+				//Cursor.visible = (Cursor.lockState == CursorLockMode.None);
+			}
+			movement.x += Input.GetKey(KeyCode.D) ? 1 : 0;
+			movement.x -= Input.GetKey(KeyCode.A) ? 1 : 0;
+			movement.y += Input.GetKey(KeyCode.W) ? 1 : 0;
+			movement.y -= Input.GetKey(KeyCode.S) ? 1 : 0;
+			if (Input.GetKeyDown(KeyCode.LeftControl))
+			{
+				if (movement != Vector2.zero) running = true;
+			}
 		}
 		
-
-		Vector2 movement = new Vector2();
-		movement.x += Input.GetKey(KeyCode.D) ? 1 : 0;
-		movement.x -= Input.GetKey(KeyCode.A) ? 1 : 0;
-		movement.y += Input.GetKey(KeyCode.W) ? 1 : 0;
-		movement.y -= Input.GetKey(KeyCode.S) ? 1 : 0;
-
-		if (Input.GetKeyDown(KeyCode.LeftControl))
-		{
-			if (movement != Vector2.zero) running = true;
-		}
 		if (movement == Vector2.zero) running = false;
 		float wobbleTargetIntensity = movement == Vector2.zero ? 0 : (running ? 2f : 1f);
 		if (state > (State)1) wobbleTargetIntensity = 0;
@@ -82,6 +89,7 @@ public class Player : MonoBehaviour
 		
 		CameraUpdate();
 		BlockPlacement();
+		GameManager.instance.AddDebugLine(debugInfo);
 	}
 
 	private long TimeStamp()
@@ -92,8 +100,11 @@ public class Player : MonoBehaviour
 	private void CameraUpdate()
 	{
 		Camera cam = setup.mainCamera;
-		euler.x -= Input.GetAxis("Mouse Y") * 2f;
-		euler.y += Input.GetAxis("Mouse X") * 2f;
+		if (!disableInput)
+		{
+			euler.x -= Input.GetAxis("Mouse Y") * 2f;
+			euler.y += Input.GetAxis("Mouse X") * 2f;
+		}
 		euler.x = Mathf.Clamp(euler.x, -89.99f, 89.99f);
 		cameraRotation = Quaternion.Euler(euler);
 		Vector3 camTargetPosition = transform.position + new Vector3(0, .5f, 0);
@@ -116,15 +127,15 @@ public class Player : MonoBehaviour
 		float fov = setup.fieldOfView + (running ? 10 : 0);
 		//if (movement == Vector2.zero) fov = Input.GetKey(KeyCode.Tab) ? 10 : fov;
 		cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, fov, Time.deltaTime * 8f);
-		if (Input.GetKey(KeyCode.Tab)) cam.fieldOfView = 20;
+		if (!disableInput)
+		{
+			if (Input.GetKey(KeyCode.Tab)) cam.fieldOfView = 20;
+		}
 		if (Input.GetKeyUp(KeyCode.Tab)) cam.fieldOfView = fov;
 	}
 
 	private void Movement(Vector2 movement ,bool running)
 	{
-		float moveForce = running ? setup.runForce : setup.walkForce;
-		float moveSpeed = running ? setup.runSpeed : setup.walkSpeed;
-
 
 		Vector3 forward = setup.mainCamera.transform.forward;
 		forward.y = 0;
@@ -134,13 +145,19 @@ public class Player : MonoBehaviour
 		right.y = 0;
 		right.Normalize();
 
+		float moveForce = running ? setup.runForce : setup.walkForce;
+		float moveSpeed = running ? setup.runSpeed : setup.walkSpeed;
+
 		Vector3 stillVelocity = setup.myRigidbody.velocity;
 		stillVelocity.x = 0;
 		stillVelocity.z = 0;
 		setup.myRigidbody.velocity = Vector3.Lerp(setup.myRigidbody.velocity, stillVelocity, Time.deltaTime * 8f);
 
+		
+
 		setup.myRigidbody.AddForce(forward * movement.y * (moveForce * Time.deltaTime));
 		setup.myRigidbody.AddForce(right * movement.x * (moveForce * Time.deltaTime));
+		
 		if (state < (State)2)
 		{
 			setup.myRigidbody.AddForce(Vector3.down * setup.fallForce * Time.deltaTime);
@@ -160,39 +177,44 @@ public class Player : MonoBehaviour
 			velocityFall = velocityFall.normalized * setup.fallSpeed;
 		}
 		Vector3 targetVelocity = velocityWalk + velocityFall;
-
-		if (Input.GetKeyDown(KeyCode.Space))
+		if (!disableInput)
 		{
-			long timestamp = TimeStamp();
-			if (timestamp < lastPressedSpace + 500)
+			if (Input.GetKeyDown(KeyCode.Space))
 			{
-				if (state == State.Creative_Walking)
+				long timestamp = TimeStamp();
+				if (timestamp < lastPressedSpace + 500)
 				{
-					state = State.Creative_Flying;
-				}
-				else if (state == State.Creative_Flying)
-				{
-					state = State.Creative_Walking;
+					if (state == State.Creative_Walking)
+					{
+						state = State.Creative_Flying;
+					}
+					else if (state == State.Creative_Flying)
+					{
+						state = State.Creative_Walking;
 
+					}
+					lastPressedSpace = 0;
 				}
-				lastPressedSpace = 0;
-			}
-			else
-			{
-				lastPressedSpace = TimeStamp();
-				targetVelocity.y = setup.jumpVelocity;
+				else
+				{
+					lastPressedSpace = TimeStamp();
+					targetVelocity.y = setup.jumpVelocity;
+				}
 			}
 		}
 		if (state > (State)1)
 		{
 			targetVelocity.y = 0;
-			if (Input.GetKey(KeyCode.Space))
+			if (!disableInput)
 			{
-				targetVelocity.y += 8;
-			}
-			if (Input.GetKey(KeyCode.LeftShift))
-			{
-				targetVelocity.y -= 8;
+				if (Input.GetKey(KeyCode.Space))
+				{
+					targetVelocity.y += 8;
+				}
+				if (Input.GetKey(KeyCode.LeftShift))
+				{
+					targetVelocity.y -= 8;
+				}
 			}
 		}
 
@@ -204,9 +226,8 @@ public class Player : MonoBehaviour
 	{
 		int layerMask = ~(1 << playerLayer);
 		RaycastHit hitInfo;
-		if (Physics.Raycast(setup.mainCamera.transform.position, setup.mainCamera.transform.forward, out hitInfo, 5, layerMask))
+		if (Physics.Raycast(setup.mainCamera.transform.position, setup.mainCamera.transform.forward, out hitInfo, 1024, layerMask))
 		{
-			//Debug.Log(hitInfo.collider.gameObject.name);
 			Vector3 inCube = hitInfo.point - (hitInfo.normal * 0.5f);
 			Vector3Int removeBlock = new Vector3Int(
 				Mathf.FloorToInt(inCube.x),
@@ -219,45 +240,52 @@ public class Player : MonoBehaviour
 				Mathf.FloorToInt(fromCube.y),
 				Mathf.FloorToInt(fromCube.z)
 			);
-			bool remove = false;
-			bool place = false;
-			remove |= Input.GetKeyDown(KeyCode.Mouse0);
-			remove |= (Input.GetKey(KeyCode.LeftControl) && Input.GetKey(KeyCode.Mouse0));
-
-			place |= Input.GetKeyDown(KeyCode.Mouse1);
-			place |= (Input.GetKey(KeyCode.LeftControl) && Input.GetKey(KeyCode.Mouse1));
-
-			if (remove)
+			debugInfo += $" Target[{removeBlock}]";
+			if (hitInfo.distance < 7)
 			{
-				byte blockToReplace = setup.world.GetBlock(removeBlock.x, removeBlock.y, removeBlock.z);
-				if (setup.world.Modify(removeBlock.x, removeBlock.y, removeBlock.z, BlockTypes.AIR))
+				//Debug.Log(hitInfo.collider.gameObject.name);
+				
+				
+				bool remove = false;
+				bool place = false;
+				if (!disableInput)
 				{
+					remove |= Input.GetKeyDown(KeyCode.Mouse0);
+					remove |= (Input.GetKey(KeyCode.LeftControl) && Input.GetKey(KeyCode.Mouse0));
 
-					AudioManager.instance.dig.Play(BlockTypes.digSound[blockToReplace], removeBlock);
-					place = false;
+					place |= Input.GetKeyDown(KeyCode.Mouse1);
+					place |= (Input.GetKey(KeyCode.LeftControl) && Input.GetKey(KeyCode.Mouse1));
 				}
-			}
-			if (place)
-			{
-				byte block = UI.instance.hotbar.GetCurrentHighlighted();
-				if (setup.world.Modify(placeBlock.x, placeBlock.y, placeBlock.z, block))
+				if (remove)
 				{
-					AudioManager.instance.dig.Play(BlockTypes.digSound[block], removeBlock);
-				}
-			}
+					byte blockToReplace = setup.world.GetBlock(removeBlock.x, removeBlock.y, removeBlock.z);
+					if (setup.world.Modify(removeBlock.x, removeBlock.y, removeBlock.z, BlockTypes.AIR))
+					{
 
-			setup.highlightPrefab.transform.position = removeBlock + new Vector3(.5f, .5f, .5f);
-			setup.highlightPrefab.SetActive(true);
+						AudioManager.instance.dig.Play(BlockTypes.digSound[blockToReplace], removeBlock);
+						place = false;
+					}
+				}
+				if (place)
+				{
+					byte block = UI.instance.hotbar.GetCurrentHighlighted();
+					if (setup.world.Modify(placeBlock.x, placeBlock.y, placeBlock.z, block))
+					{
+						AudioManager.instance.dig.Play(BlockTypes.digSound[block], removeBlock);
+					}
+				}
+
+				setup.highlightPrefab.transform.position = removeBlock + new Vector3(.5f, .5f, .5f);
+				setup.highlightPrefab.SetActive(true);
+				return;
+			}
 		}
-		else
-		{
-			setup.highlightPrefab.SetActive(false);
-		}
+		setup.highlightPrefab.SetActive(false);
 	}
 
 	private void SpectatorMovement(Vector2 movement, bool running)
 	{
-		float moveSpeed = running ? 16 : 8;
+		float moveSpeed = running ? 50 : 10;
 
 		Vector3 forward = setup.mainCamera.transform.forward;
 		forward.y = 0;

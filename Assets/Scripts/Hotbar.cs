@@ -74,7 +74,6 @@ public class Hotbar : MonoBehaviour
 				1.0f / 128 * 16,
 				1.0f / 128 * 16
 			);
-			rawImage.color = textureMap.defaultColor;
 			rawImage.uvRect = uvRect;
 		}
 	}
