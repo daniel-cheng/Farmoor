@@ -638,6 +638,7 @@ MonoBehaviour:
     time: 0
     name: Default
     seed: 0
+    type: 0
   mainCamera: {fileID: 963194227}
   chunkManager: {fileID: 2133775182}
 --- !u!4 &401460389
@@ -2676,7 +2677,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1911680366}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 128, z: 0}
+  m_LocalPosition: {x: 0, y: 80, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
@@ -2695,7 +2696,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   disableInput: 0
-  state: 2
+  state: 3
   setup:
     world: {fileID: 401460388}
     mainCamera: {fileID: 963194227}
@@ -2908,6 +2909,7 @@ MonoBehaviour:
     time: 0
     name: Dev
     seed: 0
+    type: 0
   textures: {fileID: 2800000, guid: 52c97b472de0fc445a24feb369b4c571, type: 3}
   uvTexture: {fileID: 2800000, guid: 348d2adcb7092434f951c92e253579ff, type: 3}
   screenshotCamera: {fileID: 1010846499}

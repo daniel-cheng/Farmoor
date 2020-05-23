@@ -299,11 +299,11 @@ public class Player : MonoBehaviour
 
 		if (Input.GetKey(KeyCode.Space))
 		{
-			altitude += 8;
+			altitude += 20;
 		}
 		if (Input.GetKey(KeyCode.LeftShift))
 		{
-			altitude -= 8;
+			altitude -= 20;
 		}
 
 		transform.position += movement.y * forward * Time.deltaTime * moveSpeed;

@@ -14,6 +14,6 @@ public class WorldInfo
 	}
 	public override string ToString()
 	{
-		return $"id[{id}] name[{name}] seed[{seed}] time[{time}]";
+		return $"id[{id}] name[{name}] type[{type}] seed[{seed}] time[{time}]";
 	}
 }

@@ -136,7 +136,6 @@ public class Chunk : MonoBehaviour
 					continue;
 				}
 				int y = GetHighestNonAir(chunkMap, x, z);
-
 				for(int sunlight = y;sunlight<256;++sunlight)
 				{
 					lightMap[x, sunlight, z] = 15;
@@ -148,7 +147,7 @@ public class Chunk : MonoBehaviour
 				if (z < 46) y = Mathf.Max(y, GetHighestNonAir(chunkMap, x, z + 1));
 				if (z > 1) y = Mathf.Max(y, GetHighestNonAir(chunkMap, x, z - 1));
 				y = Mathf.Min(y + 1, 255);
-				if (y <5) continue;
+				if (y <2) continue;
 
 				simulateQueue.Enqueue(new Vector3Int(x, y, z));
 
@@ -278,7 +277,6 @@ public class Chunk : MonoBehaviour
 			}
 			simulateCount++;
 		}
-		//Debug.Log("Did " + simulateCount + " light simulations");
 		UnityEngine.Profiling.Profiler.EndSample();
 
 		UnityEngine.Profiling.Profiler.EndSample();
