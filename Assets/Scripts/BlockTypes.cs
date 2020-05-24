@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using UnityEngine;
 public class BlockTypes
 {
 	//SOLID
@@ -18,15 +19,36 @@ public class BlockTypes
 	public const byte GRANITE = 13;
 	public const byte ANDESITE = 14;
 
-	//TRANSPARENT
+
+	//TRANSPARENT > 127
 	public const byte LEAVES_OAK = 128;
+
+	//TRANSPARENT WITH CUSTOM MESH > 191
+	public const byte GRASS_PATCH_1 = 192;
+
+	//AIR 255
 	public const byte AIR = 255;
 
 	public static Dictionary<byte, byte> lightLevel;
 	public static Dictionary<byte, byte> density;
 	public static Dictionary<byte, AudioManager.Dig.Type> digSound;
+	public static Dictionary<byte, CustomFace[]> customMesh;
 
-	public static void Initialize()
+	public class CustomFace
+	{
+		public CustomFace(Vector3 bl, Vector3 tl, Vector3 tr, Vector3 br, TextureMapper.TextureMap.Face face)
+		{
+			this.bl = bl;
+			this.tl = tl;
+			this.tr = tr;
+			this.br = br;
+			this.face = face;
+		}
+		public Vector3 bl, tl, tr, br;
+		public TextureMapper.TextureMap.Face face;
+	}
+
+	public static void Initialize(TextureMapper textureMapper)
 	{
 		lightLevel = new Dictionary<byte, byte>();
 		lightLevel.Add(BEDROCK, 0);
@@ -46,6 +68,8 @@ public class BlockTypes
 		lightLevel.Add(DIORITE, 0);
 		lightLevel.Add(GRANITE, 0);
 		lightLevel.Add(COBBLESTONE, 0);
+		lightLevel.Add(GRASS_PATCH_1, 0);
+
 
 		density = new Dictionary<byte, byte>();
 		density.Add(BEDROCK, 255);
@@ -65,6 +89,8 @@ public class BlockTypes
 		density.Add(DIORITE, 255);
 		density.Add(GRANITE, 255);
 		density.Add(COBBLESTONE, 255);
+		density.Add(GRASS_PATCH_1, 31);
+
 
 		digSound = new Dictionary<byte, AudioManager.Dig.Type>();
 		digSound.Add(BEDROCK, AudioManager.Dig.Type.Stone);
@@ -84,6 +110,36 @@ public class BlockTypes
 		digSound.Add(DIORITE, AudioManager.Dig.Type.Stone);
 		digSound.Add(GRANITE, AudioManager.Dig.Type.Stone);
 		digSound.Add(COBBLESTONE, AudioManager.Dig.Type.Stone);
+		digSound.Add(GRASS_PATCH_1, AudioManager.Dig.Type.Grass);
+
+		customMesh = new Dictionary<byte, CustomFace[]>();
+		customMesh.Add(GRASS_PATCH_1, new CustomFace[]{
+			new CustomFace(
+				new Vector3(0f,0f,0f),
+				new Vector3(0f,1f,0f),
+				new Vector3(1f,1f,1f),
+				new Vector3(1f,0f,1f),
+				textureMapper.map[GRASS_PATCH_1].front),
+			new CustomFace(
+				new Vector3(1f,0f,0f),
+				new Vector3(1f,1f,0f),
+				new Vector3(0f,1f,1f),
+				new Vector3(0f,0f,1f),
+				textureMapper.map[GRASS_PATCH_1].front),
+			new CustomFace(
+				new Vector3(1f,0f,1f),
+				new Vector3(1f,1f,1f),
+				new Vector3(0f,1f,0f),
+				new Vector3(0f,0f,0f),
+				textureMapper.map[GRASS_PATCH_1].front),
+			new CustomFace(
+				new Vector3(0f,0f,1f),
+				new Vector3(0f,1f,1f),
+				new Vector3(1f,1f,0f),
+				new Vector3(1f,0f,0f),
+				textureMapper.map[GRASS_PATCH_1].front)
+		});
+
 	}
 
 }

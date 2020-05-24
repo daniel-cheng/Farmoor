@@ -17,6 +17,8 @@ public class ChunkData
 	const int STRUCTURE_CHANCE_TREE = (int.MaxValue / 100);
 	const int STRUCTURE_CHANCE_WELL = (int.MaxValue / 512);
 	const int STRUCTURE_CHANCE_CAVE_ENTRANCE = (int.MaxValue / 20);
+	const int VEGETATION_CHANCE = (int.MaxValue / 10);
+
 
 
 	private Thread loadTerrainThread;
@@ -101,6 +103,10 @@ public class ChunkData
 		blocks = new byte[16, 256, 16];
 		Vector2Int worldPos = position * 16;
 
+		string hash = World.activeWorld.info.seed.ToString() + position.x.ToString() + position.y.ToString();
+		int chunkSeed = hash.GetHashCode();
+		System.Random rnd = new System.Random(chunkSeed);
+
 		for (int z = 0; z < 16; ++z)
 		{
 			for (int x = 0; x < 16; ++x)
@@ -151,7 +157,7 @@ public class ChunkData
 
 
 
-				for (int y = 0; y < 256; ++y)
+				for (int y = 255; y > -1; --y)
 				{
 					if (y > hillHeight || y<bottomHeight)
 					{
@@ -170,8 +176,12 @@ public class ChunkData
 						if (y == hillHeight)
 						{
 							blocks[x, y, z] = BlockTypes.GRASS;
+							if (rnd.Next() < VEGETATION_CHANCE)
+							{
+								blocks[x, y + 1, z] = BlockTypes.GRASS_PATCH_1;
+							}
 							//blocks[x, y, z] = BlockTypes.AIR; //TEMP
-							continue;
+								continue;
 						}
 						blocks[x, y, z] = BlockTypes.DIRT;
 						//blocks[x, y, z] = BlockTypes.AIR; //TEMP
@@ -189,9 +199,7 @@ public class ChunkData
 			}
 		}
 
-		string hash = World.activeWorld.info.seed.ToString() + position.x.ToString() + position.y.ToString();
-		int structuresSeed = hash.GetHashCode();
-		System.Random rnd = new System.Random(structuresSeed);
+		
 		structures = new List<StructureInfo>();
 		bool[,] spotsTaken = new bool[16, 16];
 
@@ -204,7 +212,7 @@ public class ChunkData
 				int h = 255;
 				while (h > 0)
 				{
-					if (blocks[8, h, 8] != BlockTypes.AIR)
+					if (blocks[8, h, 8] < 128) // is solid
 					{
 						structures.Add(new StructureInfo(new Vector3Int(0, h + 6, 0), Structure.Type.CAVE_ENTRANCE, rnd.Next()));
 						break;

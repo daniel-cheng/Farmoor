@@ -23,9 +23,8 @@ public class GameManager : MonoBehaviour
 	{
 		instance = this;
 		Initialize();
-		BlockTypes.Initialize();
 		textureMapper = new TextureMapper();
-
+		BlockTypes.Initialize(textureMapper);
 		if (AudioManager.instance == null)
 		{
 			audioManager.Initialize();

@@ -168,6 +168,16 @@ public class TextureMapper
 			new TextureMap.Face(new Vector2Int(2, 4))
 			)
 		);
+
+		map.Add(BlockTypes.GRASS_PATCH_1, new TextureMap(
+			new TextureMap.Face(new Vector2Int(5, 2)),
+			new TextureMap.Face(new Vector2Int(5, 2)),
+			new TextureMap.Face(new Vector2Int(5, 2)),
+			new TextureMap.Face(new Vector2Int(5, 2)),
+			new TextureMap.Face(new Vector2Int(5, 2)),
+			new TextureMap.Face(new Vector2Int(5, 2))
+			)
+		);
 	}
 
 	public class TextureMap
