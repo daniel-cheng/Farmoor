@@ -3144,6 +3144,7 @@ MonoBehaviour:
   chunkPrefab: {fileID: 2043051141}
   playerCanMove: 0
   isInStartup: 0
+  tickCounter: 0
 --- !u!4 &2133775183
 Transform:
   m_ObjectHideFlags: 0

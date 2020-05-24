@@ -18,7 +18,7 @@ public class World : MonoBehaviour
 		this.info = info;
 		activeWorld = this;
 		noise = new FastNoise(info.seed);
-		chunkManager.Initialize(info);
+		chunkManager.Initialize(this);
 		SimplexNoise.Noise.Seed = info.seed;
 		System.GC.Collect();
 		initialized = true;

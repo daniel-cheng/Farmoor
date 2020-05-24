@@ -11,10 +11,11 @@ public class ChunkManager : MonoBehaviour
 
 	public bool playerCanMove = false;
 
+	private World world;
 	private WorldInfo worldInfo;
 	private int renderDistance;
 	private int maximumLoadQueueSize;
-	private int[,] surroundingArea;
+	private System.Random randomTick;
 
 	public bool isInStartup; //start of the game loads faster and all around you
 	
@@ -26,6 +27,7 @@ public class ChunkManager : MonoBehaviour
 	//Camera info (multiple threads)
 	private Vector3 cameraPosition;
 	private Vector3 cameraForward;
+	private Vector2Int cameraChunkPos;
 
 	//ShouldRender thread
 	private Thread shouldRenderThread;
@@ -35,18 +37,24 @@ public class ChunkManager : MonoBehaviour
 	private volatile Queue<Vector2Int> unloadQueue;
 	private volatile List<Vector2Int> activeChunks;
 
+	//Tick thread
+	private Thread tickThread;
+	private System.Object tickLock = new System.Object();
+	private volatile bool tick;
+	public int tickCounter;
+
 	private readonly Vector2Int nFront = new Vector2Int(0, 1);
 	private readonly Vector2Int nBack = new Vector2Int(0, -1);
 	private readonly Vector2Int nLeft = new Vector2Int(-1, 0);
 	private readonly Vector2Int nRight = new Vector2Int(1, 0);
 
-	public void Initialize(WorldInfo worldInfo)
+	public void Initialize(World world)
 	{
-		this.worldInfo = worldInfo;
+		this.world = world;
+		this.worldInfo = world.info;
 		renderDistance = GameManager.instance.gameSettings.RenderDistance;
 		maximumLoadQueueSize = GameManager.instance.gameSettings.maximumLoadQueueSize;
 		playerCanMove = false;
-		surroundingArea = new int[renderDistance*2, renderDistance*2];
 		chunkDataManager = new ChunkDataManager(worldInfo);
 		chunkMap = new Dictionary<Vector2Int, Chunk>();
 		chunkPool = new Queue<Chunk>();
@@ -55,6 +63,7 @@ public class ChunkManager : MonoBehaviour
 		unloadQueue = new Queue<Vector2Int>();
 		modifiedRebuildQueue = new Queue<Vector2Int>();
 		modifyNeighborOrder = new List<Vector2Int>();
+		randomTick = new System.Random();
 		int chunkPoolSize = renderDistance * renderDistance * 4;
 		Debug.Log("Chunk pool size: " + chunkPoolSize);
 		for (int i = 0; i < chunkPoolSize; ++i)
@@ -69,6 +78,10 @@ public class ChunkManager : MonoBehaviour
 		shouldRenderThread = new Thread(ShouldRenderThread);
 		shouldRenderThread.IsBackground = true;
 		shouldRenderThread.Start();
+
+		tickThread = new Thread(TickThread);
+		tickThread.IsBackground = true;
+		tickThread.Start(20);
 	}
 
 	public void UpdateChunks(Camera mainCamera)
@@ -79,6 +92,7 @@ public class ChunkManager : MonoBehaviour
 
 		cameraPosition = mainCamera.transform.position;
 		cameraForward = mainCamera.transform.forward;
+		cameraChunkPos = new Vector2Int((int)cameraPosition.x / 16, (int)cameraPosition.z / 16);
 
 		int loadQueueCount = 0;
 
@@ -168,6 +182,32 @@ public class ChunkManager : MonoBehaviour
 		}
 		shouldRenderWaitForUpdate = false;
 		UnityEngine.Profiling.Profiler.EndSample();
+
+		UnityEngine.Profiling.Profiler.BeginSample("TICK");
+		bool newTick;
+		lock (tickLock)
+		{
+			newTick = tick;
+			tick = false;
+		}
+		if (newTick)
+		{
+			tickCounter++;
+			for (int y = -7; y < 8; ++y)
+			{
+				for (int x = -7; x < 8; ++x)
+				{
+					Vector2Int chunkPos = cameraChunkPos + new Vector2Int(x, y);
+					if (chunkMap.ContainsKey(chunkPos))
+					{
+						chunkMap[chunkPos].Tick(world, randomTick);
+					}
+				}
+			}
+		}
+		UnityEngine.Profiling.Profiler.EndSample();
+
+
 		int activeChunksCount = activeChunks.Count;
 		int rebuildQueueCount = modifiedRebuildQueue.Count;
 		int chunksInMemoryCount = chunkDataManager.GetChunksInMemoryCount();
@@ -207,8 +247,8 @@ public class ChunkManager : MonoBehaviour
 			visiblePoints.Clear();
 			inRangePoints.Clear();
 			copyOfActiveChunks.Clear();
-			Vector2Int cameraChunkPos;
-			cameraChunkPos = new Vector2Int((int)cameraPosition.x / 16, (int)cameraPosition.z / 16);
+			//Vector2Int cameraChunkPos;
+			//cameraChunkPos = new Vector2Int((int)cameraPosition.x / 16, (int)cameraPosition.z / 16);
 			Vector3 cameraPositionFloor = new Vector3(cameraPosition.x, 0, cameraPosition.z);
 			Vector3 cameraForwardFloor = cameraForward;
 			cameraForwardFloor.y = 0;
@@ -417,11 +457,30 @@ public class ChunkManager : MonoBehaviour
 		Debug.LogWarning("Unloaded all chunks");
 	}
 
+	private void TickThread(object ticksPerSecond)
+	{
+		int tps = (int)ticksPerSecond;
+		int tickDeltaMS = (int)(1000f / tps);
+		long previousTick = TimeStamp();
+		long nextTick = previousTick + tickDeltaMS;
+		while (true)
+		{
+			Thread.Sleep(Mathf.Max( (int)(nextTick - TimeStamp()),1));
+			lock (tickLock)
+			{
+				tick = true;
+			}
+			previousTick = nextTick;
+			nextTick += tickDeltaMS;
+		}
+	}
+
 
 	private void OnDestroy()
 	{
 		Debug.Log("OnDestroy called in ChunkManager");
 		shouldRenderThread.Abort();
+		tickThread.Abort();
 		Thread.Sleep(30);
 	}
 

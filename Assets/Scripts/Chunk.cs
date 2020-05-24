@@ -30,6 +30,7 @@ public class Chunk : MonoBehaviour
 	private static List<int> triangles = new List<int>();
 	private static VertexData[] vBuffer = new VertexData[786432];
 	private static int vBufferLength;
+	
 
 
 	//for generating
@@ -77,6 +78,69 @@ public class Chunk : MonoBehaviour
 	public void Initialize(Vector2Int position)
 	{
 		this.position = position;
+	}
+
+	public void Tick(World world, System.Random randomTick)
+	{
+		for (int y = 0; y < 256; y+=16)
+		{
+			//4096 = 16*16*16
+			RandomTick(y, world, randomTick.Next(4096));
+		}
+	}
+
+	private void RandomTick(int minY, World world, int randomTickIndex)
+	{
+		//Debug.Log($"{position} random tick at height {minY}-{maxY}");
+		Vector3Int randomPos = RandomTickPositionFromIndex(randomTickIndex) + new Vector3Int(0, minY, 0);
+		Vector3Int blockWorldPos = randomPos + new Vector3Int(position.x * 16, 0, position.y * 16);
+		int x = blockWorldPos.x;
+		int y = blockWorldPos.y;
+		int z = blockWorldPos.z;
+
+		byte block = world.GetBlock(x, y, z);
+		try //many exceptions can occur since it checks neighboring chunks which may not be loaded
+		{
+			switch (block)
+			{
+				case BlockTypes.DIRT:
+					//Debug.Log("Updating Dirt");
+
+					bool becomeGrass = false;
+					if (world.GetBlock(x, y + 1, z) != BlockTypes.AIR) break;
+
+					becomeGrass |= world.GetBlock(x + 1, y, z) == BlockTypes.GRASS;
+					becomeGrass |= world.GetBlock(x - 1, y, z) == BlockTypes.GRASS;
+					becomeGrass |= world.GetBlock(x, y, z + 1) == BlockTypes.GRASS;
+					becomeGrass |= world.GetBlock(x, y, z - 1) == BlockTypes.GRASS;
+
+					becomeGrass |= world.GetBlock(x + 1, y + 1, z) == BlockTypes.GRASS;
+					becomeGrass |= world.GetBlock(x - 1, y + 1, z) == BlockTypes.GRASS;
+					becomeGrass |= world.GetBlock(x, y + 1, z + 1) == BlockTypes.GRASS;
+					becomeGrass |= world.GetBlock(x, y + 1, z - 1) == BlockTypes.GRASS;
+
+					becomeGrass |= world.GetBlock(x + 1, y - 1, z) == BlockTypes.GRASS;
+					becomeGrass |= world.GetBlock(x - 1, y - 1, z) == BlockTypes.GRASS;
+					becomeGrass |= world.GetBlock(x, y - 1, z + 1) == BlockTypes.GRASS;
+					becomeGrass |= world.GetBlock(x, y - 1, z - 1) == BlockTypes.GRASS;
+
+					if (becomeGrass)
+					{
+						Debug.Log($"Grass spreading at {blockWorldPos}");
+						world.Modify(x, y, z, BlockTypes.GRASS);
+
+					}
+
+					break;
+				case BlockTypes.GRASS:
+					if (world.GetBlock(x, y + 1, z) != BlockTypes.AIR)
+					{
+						world.Modify(x, y, z, BlockTypes.DIRT);
+					}
+					break;
+			}
+		}
+		catch (System.Exception) { } //ignore exceptions for this
 	}
 
 	public void Build(ChunkDataManager chunkDataManager)
@@ -568,42 +632,6 @@ public class Chunk : MonoBehaviour
 		}
 	}
 
-	//private void AddFace(Vector3 a, Vector3 b, Vector3 c, Vector3 d, Vector3 normal)
-	//{
-	//	int index = vertices.Count;
-	//	vertices.Add(a);
-	//	vertices.Add(b);
-	//	vertices.Add(c);
-	//	vertices.Add(d);
-	//	normals.Add(normal);
-	//	normals.Add(normal);
-	//	normals.Add(normal);
-	//	normals.Add(normal);
-	//	triangles.Add(index + 0);
-	//	triangles.Add(index + 1);
-	//	triangles.Add(index + 2);
-	//	triangles.Add(index + 2);
-	//	triangles.Add(index + 3);
-	//	triangles.Add(index + 0);
-	//}
-
-	//private void AddTextureFace(TextureMapper.TextureMap.Face face)
-	//{
-	//	uvs.Add(face.bl);
-	//	uvs.Add(face.tl);
-	//	uvs.Add(face.tr);
-	//	uvs.Add(face.br);
-	//}
-
-	//private void AddColors(TextureMapper.TextureMap textureMap, byte lBL,byte lTL, byte lTR, byte lBR)
-	//{
-	//	//c.a = lightLevel;
-	//	colors.Add(new Color32(1,1,1,lBL));
-	//	colors.Add(new Color32(1, 1, 1, lTL));
-	//	colors.Add(new Color32(1, 1, 1, lTR));
-	//	colors.Add(new Color32(1, 1, 1, lBR));
-	//}
-
 	private void AddVertexData(
 		Vector3 a,
 		Vector3 b,
@@ -638,5 +666,13 @@ public class Chunk : MonoBehaviour
 	{
 		mesh.Clear();
 		gameObject.SetActive(false);
+	}
+
+	private Vector3Int RandomTickPositionFromIndex(int index)
+	{
+		int x = index % 16;
+		int y = (index - x) / 256;
+		int z = (index - (y * 256) - x) / 16;
+		return new Vector3Int(x, y, z);
 	}
 }
