@@ -101,7 +101,6 @@ public class ChunkData
 		blocks = new byte[16, 256, 16];
 		Vector2Int worldPos = position * 16;
 
-		System.Random tmpTest = new System.Random();
 		for (int z = 0; z < 16; ++z)
 		{
 			for (int x = 0; x < 16; ++x)
@@ -112,7 +111,7 @@ public class ChunkData
 					{
 						blocks[x, y, z] = BlockTypes.AIR;	
 					}
-					blocks[x, 3, z] = tmpTest.Next(32)==0?  BlockTypes.GRASS:BlockTypes.DIRT;
+					blocks[x, 3, z] = BlockTypes.GRASS;
 					blocks[x, 2, z] = BlockTypes.DIRT;
 					blocks[x, 1, z] = BlockTypes.DIRT;
 					blocks[x, 0, z] = BlockTypes.BEDROCK;
