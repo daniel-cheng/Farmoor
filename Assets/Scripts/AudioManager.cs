@@ -175,7 +175,7 @@ public class AudioManager : MonoBehaviour
 		{
 			Debug.Log("Playing sound of type " + type);
 			AudioClip[] clips = GetClips(type);
-			if (clips == null) return;
+			if (clips == null || clips.Length == 0) return;
 			AudioClip clip = clips[Random.Range(0,clips.Length)];
 			//Debug.Log("Playing sound " + clip.name);
 			AudioSource.PlayClipAtPoint(clip, position);

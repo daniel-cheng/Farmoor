@@ -100,12 +100,12 @@ public class Player : MonoBehaviour
 	private void CameraUpdate()
 	{
 		Camera cam = setup.mainCamera;
-		if (!disableInput)
-		{
-			euler.x -= Input.GetAxis("Mouse Y") * 2f;
-			euler.y += Input.GetAxis("Mouse X") * 2f;
-		}
-		euler.x = Mathf.Clamp(euler.x, -89.99f, 89.99f);
+		//if (!disableInput)
+		//{
+		//	euler.x -= Input.GetAxis("Mouse Y") * 2f;
+		//	euler.y += Input.GetAxis("Mouse X") * 2f;
+		//}
+		euler.x = Mathf.Clamp(90, -89.99f, 89.99f);
 		cameraRotation = Quaternion.Euler(euler);
 		Vector3 camTargetPosition = transform.position + new Vector3(0, .5f, 0);
 		cameraPosition = Vector3.Lerp(
@@ -118,20 +118,20 @@ public class Player : MonoBehaviour
 		cam.transform.rotation = cameraRotation;
 		cam.transform.position = cameraPosition;
 
-		cam.transform.Rotate(Vector3.forward, Mathf.Sin(wobble) * 0.2f* wobbleIntensity);
-		cam.transform.Rotate(Vector3.right, Mathf.Sin(wobble * 2f) * 0.3f* wobbleIntensity);
-		cam.transform.Rotate(Vector3.up, -Mathf.Sin(wobble ) * 0.2f* wobbleIntensity);
-		cam.transform.position+=(cam.transform.up * Mathf.Sin(wobble*2f) * 0.05f* wobbleIntensity);
+        //cam.transform.Rotate(Vector3.forward, Mathf.Sin(wobble) * 0.2f* wobbleIntensity);
+        //cam.transform.Rotate(Vector3.right, Mathf.Sin(wobble * 2f) * 0.3f * wobbleIntensity);
+        //cam.transform.Rotate(Vector3.up, -Mathf.Sin(wobble ) * 0.2f* wobbleIntensity);
+        cam.transform.position+=(cam.transform.up * Mathf.Sin(wobble*2f) * 0.05f* wobbleIntensity);
 		cam.transform.position += (cam.transform.right * Mathf.Sin(wobble) * 0.05f* wobbleIntensity);
 
 		float fov = setup.fieldOfView + (running ? 10 : 0);
 		//if (movement == Vector2.zero) fov = Input.GetKey(KeyCode.Tab) ? 10 : fov;
-		cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, fov, Time.deltaTime * 8f);
-		if (!disableInput)
-		{
-			if (Input.GetKey(KeyCode.Tab)) cam.fieldOfView = 20;
-		}
-		if (Input.GetKeyUp(KeyCode.Tab)) cam.fieldOfView = fov;
+		//cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, fov, Time.deltaTime * 8f);
+		//if (!disableInput)
+		//{
+		//	if (Input.GetKey(KeyCode.Tab)) cam.fieldOfView = 20;
+		//}
+		//if (Input.GetKeyUp(KeyCode.Tab)) cam.fieldOfView = fov;
 	}
 
 	private void Movement(Vector2 movement ,bool running)
@@ -224,9 +224,13 @@ public class Player : MonoBehaviour
 
 	private void BlockPlacement()
 	{
-		int layerMask = ~(1 << playerLayer);
+        //Implement zoom layer and +/- zoom
+
+        int layerMask = ~(1 << playerLayer);
 		RaycastHit hitInfo;
-		if (Physics.Raycast(setup.mainCamera.transform.position, setup.mainCamera.transform.forward, out hitInfo, 1024, layerMask))
+        float raycastDistance = 10000;
+        Vector3 raycastStart = setup.mainCamera.transform.position + setup.mainCamera.transform.forward * setup.mainCamera.nearClipPlane;
+		if (Physics.Raycast(raycastStart, setup.mainCamera.transform.forward, out hitInfo, raycastDistance, layerMask))
 		{
 			Vector3 inCube = hitInfo.point - (hitInfo.normal * 0.5f);
 			Vector3Int removeBlock = new Vector3Int(
@@ -241,7 +245,7 @@ public class Player : MonoBehaviour
 				Mathf.FloorToInt(fromCube.z)
 			);
 			debugInfo += $" Target[{removeBlock}]";
-			if (hitInfo.distance < 7)
+			if (hitInfo.distance < raycastDistance)
 			{
 				//Debug.Log(hitInfo.collider.gameObject.name);
 				
